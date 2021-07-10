@@ -3,8 +3,7 @@ provider "aws" {
 }
 
 terraform {
-  backend "s3" {
-  }
+  backend "s3" {}
 }
 
 # Variables normalement dans un autre fichier (variables.tf) mais pour faire simple.... ca marche aussi !!!
@@ -24,7 +23,7 @@ data "aws_ami" "selected" {
   }
   filter {
     name   = "tag:Name"
-    values = ["dev-WebApache-AMI"]
+    values = ["PackerAnsible-Apache"]
   }
   most_recent = true
 }
@@ -90,9 +89,9 @@ resource "aws_security_group" "web-sg-asg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
-    from_port       = 80
+    from_port       = 8080
     protocol        = "tcp"
-    to_port         = 80
+    to_port         = 8080
     security_groups = [aws_security_group.web-sg-elb.id] # on authorise en entrée de l'ASG que le flux venant de l'ELB
   }
   lifecycle {
@@ -110,9 +109,9 @@ resource "aws_security_group" "web-sg-elb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
-    from_port   = 80
+    from_port   = 8080
     protocol    = "tcp"
-    to_port     = 80
+    to_port     = 8080
     cidr_blocks = ["0.0.0.0/0"]   # Normalement Ouvert sur le web sauf dans le cas d'un site web Privé(Exemple Intranet ou nous qui ne voulons pas exposer le site)
   }
   lifecycle {
@@ -158,16 +157,16 @@ resource "aws_elb" "web-elb" {
   security_groups = [aws_security_group.web-sg-elb.id]
 
   listener {
-    instance_port     = 80
+    instance_port     = 8080
     instance_protocol = "http"
-    lb_port           = 80
+    lb_port           = 8080
     lb_protocol       = "http"
   }
 
   health_check {
     healthy_threshold   = 2
     interval            = 30
-    target              = "HTTP:80/"
+    target              = "HTTP:8080/"
     timeout             = 3
     unhealthy_threshold = 2
   }
