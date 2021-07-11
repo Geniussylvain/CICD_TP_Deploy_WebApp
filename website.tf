@@ -14,7 +14,7 @@ variable "env" {
 
 ####################################################################
 # On recherche la derniere AMI créée avec le Name TAG PackerAnsible-Apache
-data "aws_ami" "selected" {
+data "aws_ami" "dev" {
   owners = ["self"]
   filter {
     name   = "state"
