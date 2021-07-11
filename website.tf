@@ -1,12 +1,11 @@
 provider "aws" {
   region = "eu-west-1"
 }
-
 terraform {
-  backend "s3" {}
+  backend "s3" {
+  }
 }
 
-# Variables normalement dans un autre fichier (variables.tf) mais pour faire simple.... ca marche aussi !!!
 variable "env" {
   type    = string
   default = "dev"
@@ -17,19 +16,20 @@ variable "app_name" {
   default = "WebApache"
 }
 
+
 ####################################################################
-# On recherche la derniere AMI créée avec le Name TAG PackerAnsible-Apache
-data "aws_ami" "selected" {
+# On recherche la derniere AMI créée avec le TAG PackerAnsible-Apache
+data "aws_ami" "WebApache" {
   owners = ["self"]
   filter {
     name   = "state"
     values = ["available"]
 
   }
-  filter {
-    name   = "tag:Name"
-    values = ["PackerAnsible-Apache"]
-  }
+ # filter {
+  #  name   = "tag:Name"
+  #  values = ["${var.env}-${var.app_name}-AMI"]
+ # }
   most_recent = true
 }
 
@@ -41,16 +41,16 @@ data "aws_vpc" "selected" {
   }
 }
 
-## Subnets
+## Subnet
 data "aws_subnet" "subnet-public-1" {
   tags = {
     Name = "${var.env}-subnet-public-1"
   }
 }
 
-data "aws_subnet" "subnet-public-2" {
+data "aws_subnet" "subnet-public-4" {
   tags = {
-    Name = "${var.env}-subnet-public-2"
+    Name = "${var.env}-subnet-public-4"
   }
 }
 
@@ -82,8 +82,7 @@ data "aws_subnet" "subnet-private-3" {
 data "aws_availability_zones" "all" {}
 
 ########################################################################
-# Security Groups
-## ASG
+
 resource "aws_security_group" "web-sg-asg" {
   name   = "${var.env}-sg-asg"
   vpc_id = data.aws_vpc.selected.id
@@ -97,13 +96,13 @@ resource "aws_security_group" "web-sg-asg" {
     from_port       = 8080
     protocol        = "tcp"
     to_port         = 8080
-    security_groups = [aws_security_group.web-sg-elb.id] # on authorise en entrée de l'ASG que le flux venant de l'ELB
+    security_groups = [aws_security_group.web-sg-elb.id]
   }
   lifecycle {
     create_before_destroy = true
   }
 }
-## ELB
+
 resource "aws_security_group" "web-sg-elb" {
   name   = "${var.env}-sg-elb"
   vpc_id = data.aws_vpc.selected.id
@@ -117,16 +116,15 @@ resource "aws_security_group" "web-sg-elb" {
     from_port   = 8080
     protocol    = "tcp"
     to_port     = 8080
-    cidr_blocks = ["0.0.0.0/0"]   # Normalement Ouvert sur le web sauf dans le cas d'un site web Privé(Exemple Intranet ou nous qui ne voulons pas exposer le site)
+    cidr_blocks = ["0.0.0.0/0"]
   }
   lifecycle {
     create_before_destroy = true
   }
 }
-##########################################################################
-# ASG Launch Configuration
+
 resource "aws_launch_configuration" "web-lc" {
-  image_id      = data.aws_ami.selected.id
+  image_id      = data.aws_ami.WebApache.id
   instance_type = "t2.micro"
   #  key_name = ""  # Si vous voulez utiliser une KeyPair pour vous connecter aux instances
   security_groups = [aws_security_group.web-sg-asg.id]
@@ -135,9 +133,11 @@ resource "aws_launch_configuration" "web-lc" {
   }
 }
 
-# ASG
+
 resource "aws_autoscaling_group" "web-asg" {
+  name                 = aws_launch_configuration.web-lc.name
   launch_configuration = aws_launch_configuration.web-lc.id
+  # availability_zones   = data.aws_availability_zones.all.names
   vpc_zone_identifier  = [data.aws_subnet.subnet-private-1.id, data.aws_subnet.subnet-private-2.id, data.aws_subnet.subnet-private-3.id]
   load_balancers       = [aws_elb.web-elb.name]
   health_check_type    = "ELB"
@@ -155,7 +155,6 @@ resource "aws_autoscaling_group" "web-asg" {
   }
 }
 
-# ELB
 resource "aws_elb" "web-elb" {
   name            = "${var.env}-elb"
   subnets         = [data.aws_subnet.subnet-public-1.id, data.aws_subnet.subnet-public-2.id, data.aws_subnet.subnet-public-3.id]
@@ -171,7 +170,7 @@ resource "aws_elb" "web-elb" {
   health_check {
     healthy_threshold   = 2
     interval            = 30
-    target              = "HTTP:8080/"
+    target              = "HTTP:443/"
     timeout             = 3
     unhealthy_threshold = 2
   }
@@ -238,8 +237,11 @@ resource "aws_cloudwatch_metric_alarm" "web-cpu-alarm-scaledown" {
   alarm_actions   = [aws_autoscaling_policy.web-cpu-policy-scaledown.arn]
 }
 
-#  Outputs normalement dans un autre fichier(Outputs.tf) mais pour faire simple....
-## On revoie le nom DNS de l'ELB pour s'y connecter (Compter quelques minutes avant disponibilité au premier déployement)
+output "selected_ami_id" {
+  description = "Selected AMI id"
+  value       = data.aws_ami.WebApache.id
+}
+
 output "elb_dns_name" {
   description = "The DNS name of the ELB"
   value       = aws_elb.web-elb.dns_name
