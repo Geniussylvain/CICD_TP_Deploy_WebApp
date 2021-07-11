@@ -12,9 +12,14 @@ variable "env" {
   default = "dev"
 }
 
+variable "app_name" {
+  type    = string
+  default = "WebApache"
+}
+
 ####################################################################
 # On recherche la derniere AMI créée avec le Name TAG PackerAnsible-Apache
-data "aws_ami" "dev" {
+data "aws_ami" "WebApache" {
   owners = ["self"]
   filter {
     name   = "state"
