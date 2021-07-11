@@ -157,7 +157,7 @@ resource "aws_autoscaling_group" "web-asg" {
 
 resource "aws_elb" "web-elb" {
   name            = "${var.env}-elb"
-  subnets         = [data.aws_subnet.subnet-public-1.id, data.aws_subnet.subnet-public-2.id, data.aws_subnet.subnet-public-3.id]
+  subnets         = [data.aws_subnet.subnet-public-1.id, data.aws_subnet.subnet-public-4.id, data.aws_subnet.subnet-public-3.id]
   security_groups = [aws_security_group.web-sg-elb.id]
 
   listener {
