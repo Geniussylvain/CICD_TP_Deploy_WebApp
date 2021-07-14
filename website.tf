@@ -48,9 +48,9 @@ data "aws_subnet" "subnet-public-1" {
   }
 }
 
-data "aws_subnet" "subnet-public-4" {
+data "aws_subnet" "subnet-public-2" {
   tags = {
-    Name = "${var.env}-subnet-public-4"
+    Name = "${var.env}-subnet-public-2"
   }
 }
 
@@ -93,9 +93,9 @@ resource "aws_security_group" "web-sg-asg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
-    from_port       = 8080
+    from_port       = 443
     protocol        = "tcp"
-    to_port         = 8080
+    to_port         = 443
     security_groups = [aws_security_group.web-sg-elb.id]
   }
   lifecycle {
@@ -113,9 +113,9 @@ resource "aws_security_group" "web-sg-elb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
-    from_port   = 8080
+    from_port   = 443
     protocol    = "tcp"
-    to_port     = 8080
+    to_port     = 443
     cidr_blocks = ["0.0.0.0/0"]
   }
   lifecycle {
@@ -157,13 +157,13 @@ resource "aws_autoscaling_group" "web-asg" {
 
 resource "aws_elb" "web-elb" {
   name            = "${var.env}-elb"
-  subnets         = [data.aws_subnet.subnet-public-1.id, data.aws_subnet.subnet-public-4.id, data.aws_subnet.subnet-public-3.id]
+  subnets         = [data.aws_subnet.subnet-public-1.id, data.aws_subnet.subnet-public-2.id, data.aws_subnet.subnet-public-3.id]
   security_groups = [aws_security_group.web-sg-elb.id]
 
   listener {
-    instance_port     = 8080
+    instance_port     = 443
     instance_protocol = "http"
-    lb_port           = 8080
+    lb_port           = 443
     lb_protocol       = "http"
   }
 
